@@ -41,6 +41,9 @@ ACIT333Character::ACIT333Character()
 	GetCharacterMovement()->MaxWalkSpeed = 600.f;
 	GetCharacterMovement()->MaxFlySpeed = 600.f;
 
+	// Create extended input component.
+	ExtendedInputComponent = CreateDefaultSubobject<UExtendedInputComponent>(TEXT("ExtendedInputComponent"));
+
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named MyCharacter (to avoid direct content references in C++)
 }
@@ -57,6 +60,14 @@ void ACIT333Character::SetupPlayerInputComponent(class UInputComponent* PlayerIn
 
 	PlayerInputComponent->BindTouch(IE_Pressed, this, &ACIT333Character::TouchStarted);
 	PlayerInputComponent->BindTouch(IE_Released, this, &ACIT333Character::TouchStopped);
+
+	// setup extended input component
+	ExtendedInputComponent->SetInputComponent(PlayerInputComponent);
+
+	ExtendedInputComponent->AddAction({ "Action1", "Action2" }, EIE_ShortTap, this, &ACIT333Character::OnShortTap);
+	ExtendedInputComponent->AddAction({ "Action1", "Action2" }, EIE_LongTap, this, &ACIT333Character::OnLongTap);
+
+	SetupExtendedInputComponent(ExtendedInputComponent);
 }
 
 void ACIT333Character::MoveRight(float Value)
@@ -76,3 +87,12 @@ void ACIT333Character::TouchStopped(const ETouchIndex::Type FingerIndex, const F
 	StopJumping();
 }
 
+void ACIT333Character::OnShortTap()
+{
+	UE_LOG(LogTemp, Log, TEXT("OnShortTap"));
+}
+
+void ACIT333Character::OnLongTap()
+{
+	UE_LOG(LogTemp, Log, TEXT("OnLongTap"));
+}
