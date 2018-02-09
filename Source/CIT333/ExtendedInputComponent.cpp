@@ -39,34 +39,22 @@ void UExtendedInputComponent::AddAction(TArray<FName> Names, EExtendedInputEvent
 			Node = Node->Children.Emplace(Name, new FExtendedInputTreeNode()).Get();
 		}
 
-		// FIXME: I believe the blueprint and native class use their own ExtendedInputComponents,
-		// yet both the blueprint and native class use the same InputComponent. Also, the below
-		// hack removes all bindings that use an action, not just the one assigned by the
-		// ExtendedInputComponent.
-		//
-		// Either find a way to get the blueprint and native class to use the same ExtendedInputComponent
-		// or find a way to detect bindings from other ExtendedInputComponents.
-		
-		for (int32 i = 0; i < InputComponent->GetNumActionBindings(); i++)
+		// Test if handling bound names this way is a problem or not.
+		if (!BoundNames.Contains(Name))
 		{
-			FInputActionBinding& Binding = InputComponent->GetActionBinding(i);
+			FInputActionHandlerSignature Signature;
+			Signature.BindUObject(this, &UExtendedInputComponent::OnPressed, Name);
 
-			if (Binding.ActionName == Name)
-			{
-				InputComponent->RemoveActionBinding(i);
-			}
+			FInputActionBinding Binding;
+			Binding.ActionDelegate = Signature;
+			Binding.ActionName = Name;
+			Binding.KeyEvent = IE_Pressed;
+
+			InputComponent->AddActionBinding(Binding);
+			InputComponent->BindAction(Name, IE_Released, this, &UExtendedInputComponent::OnReleased);
+
+			BoundNames.Add(Name);
 		}
-
-		FInputActionHandlerSignature Signature;
-		Signature.BindUObject(this, &UExtendedInputComponent::OnPressed, Name);
-
-		FInputActionBinding Binding;
-		Binding.ActionDelegate = Signature;
-		Binding.ActionName = Name;
-		Binding.KeyEvent = IE_Pressed;
-
-		InputComponent->AddActionBinding(Binding);
-		InputComponent->BindAction(Name, IE_Released, this, &UExtendedInputComponent::OnReleased);
 	}
 
 	if (Event == EIE_ShortTap)
@@ -102,11 +90,15 @@ void UExtendedInputComponent::OnReleased()
 	if (TimerManager->IsTimerActive(ShortTapHandle))
 	{
 		TimerManager->ClearTimer(ShortTapHandle);
+
+		// Only remove name?
 		PressedNames.Empty();
 	}
 	else if (TimerManager->IsTimerActive(LongTapHandle))
 	{
 		TimerManager->ClearTimer(LongTapHandle);
+		
+		// Only remove name?
 		PressedNames.Empty();
 	}
 }
@@ -121,6 +113,8 @@ void UExtendedInputComponent::OnShortTap()
 	{
 		if (!Node->Children.Contains(Name))
 		{
+			// Modify?
+			PressedNames.Empty();
 			return;
 		}
 
@@ -134,6 +128,7 @@ void UExtendedInputComponent::OnShortTap()
 		TimerManager->SetTimer(LongTapHandle, this, &UExtendedInputComponent::OnLongTap, LongTapTime, false, LongTapTime);
 	}
 
+	// Modify?
 	PressedNames.Empty();
 }
 

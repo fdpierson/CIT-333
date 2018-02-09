@@ -117,6 +117,7 @@ protected:
 	FTimerHandle ShortTapHandle;
 	FTimerManager* TimerManager;
 
+	TArray<FName> BoundNames;
 	TArray<FName> PressedNames;
 
 	UInputComponent* InputComponent;
