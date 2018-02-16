@@ -64,9 +64,6 @@ void ACIT333Character::SetupPlayerInputComponent(class UInputComponent* PlayerIn
 	// setup extended input component
 	ExtendedInputComponent->SetInputComponent(PlayerInputComponent);
 
-	ExtendedInputComponent->AddAction({ "Action1", "Action2" }, EIE_ShortTap, this, &ACIT333Character::OnShortTap);
-	ExtendedInputComponent->AddAction({ "Action1", "Action2" }, EIE_LongTap, this, &ACIT333Character::OnLongTap);
-
 	SetupExtendedInputComponent();
 }
 
@@ -85,14 +82,4 @@ void ACIT333Character::TouchStarted(const ETouchIndex::Type FingerIndex, const F
 void ACIT333Character::TouchStopped(const ETouchIndex::Type FingerIndex, const FVector Location)
 {
 	StopJumping();
-}
-
-void ACIT333Character::OnShortTap()
-{
-	UE_LOG(LogTemp, Log, TEXT("OnShortTap"));
-}
-
-void ACIT333Character::OnLongTap()
-{
-	UE_LOG(LogTemp, Log, TEXT("OnLongTap"));
 }

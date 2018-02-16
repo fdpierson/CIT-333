@@ -57,11 +57,11 @@ void UExtendedInputComponent::AddAction(TArray<FName> Names, EExtendedInputEvent
 		}
 	}
 
-	if (Event == EIE_ShortTap)
+	if (Event == EExtendedInputEvent::EIE_ShortTap)
 	{
 		Node->ShortTapDelegate = Delegate;
 	}
-	else if (Event == EIE_LongTap)
+	else if (Event == EExtendedInputEvent::EIE_LongTap)
 	{
 		Node->LongTapDelegate = Delegate;
 	}

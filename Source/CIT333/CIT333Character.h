@@ -43,12 +43,6 @@ protected:
 public:
 	ACIT333Character();
 
-	/** Handle short tap event. */
-	void OnShortTap();
-
-	/** Handle long tap event. */
-	void OnLongTap();
-
 	UFUNCTION(BlueprintImplementableEvent)
 	void SetupExtendedInputComponent();
 
