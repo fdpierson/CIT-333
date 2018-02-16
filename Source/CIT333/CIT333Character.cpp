@@ -67,7 +67,7 @@ void ACIT333Character::SetupPlayerInputComponent(class UInputComponent* PlayerIn
 	ExtendedInputComponent->AddAction({ "Action1", "Action2" }, EIE_ShortTap, this, &ACIT333Character::OnShortTap);
 	ExtendedInputComponent->AddAction({ "Action1", "Action2" }, EIE_LongTap, this, &ACIT333Character::OnLongTap);
 
-	SetupExtendedInputComponent(ExtendedInputComponent);
+	SetupExtendedInputComponent();
 }
 
 void ACIT333Character::MoveRight(float Value)

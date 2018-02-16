@@ -98,6 +98,11 @@ void UExtendedInputComponent::OnReleased()
 	{
 		TimerManager->ClearTimer(LongTapHandle);
 		
+		if (Node)
+		{
+			Node->ShortTapDelegate.Execute();
+		}
+
 		// Only remove name?
 		PressedNames.Empty();
 	}
@@ -121,11 +126,13 @@ void UExtendedInputComponent::OnShortTap()
 		Node = Node->Children.Find(Name)->Get();
 	}
 
-	Node->ShortTapDelegate.Execute();
-
 	if (Node->LongTapDelegate.IsBound())
 	{
 		TimerManager->SetTimer(LongTapHandle, this, &UExtendedInputComponent::OnLongTap, LongTapTime, false, LongTapTime);
+	}
+	else
+	{
+		Node->ShortTapDelegate.Execute();
 	}
 
 	// Modify?

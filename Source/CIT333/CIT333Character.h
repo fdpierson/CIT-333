@@ -50,7 +50,7 @@ public:
 	void OnLongTap();
 
 	UFUNCTION(BlueprintImplementableEvent)
-	void SetupExtendedInputComponent(UExtendedInputComponent* _ExtendedInputComponent);
+	void SetupExtendedInputComponent();
 
 	/** Returns SideViewCameraComponent subobject **/
 	FORCEINLINE class UCameraComponent* GetSideViewCameraComponent() const { return SideViewCameraComponent; }
