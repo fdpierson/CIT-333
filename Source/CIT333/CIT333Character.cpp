@@ -23,15 +23,15 @@ ACIT333Character::ACIT333Character()
 	CameraBoom->bAbsoluteRotation = true; // Rotation of the character should not affect rotation of boom
 	CameraBoom->bDoCollisionTest = false;
 	CameraBoom->TargetArmLength = 500.f;
-	CameraBoom->SocketOffset = FVector(0.f,0.f,75.f);
-	CameraBoom->RelativeRotation = FRotator(0.f,180.f,0.f);
+	CameraBoom->SocketOffset = FVector(0.f, 0.f, 75.f);
+	CameraBoom->RelativeRotation = FRotator(0.f, 180.f, 0.f);
 
 	// Create a camera and attach to boom
 	SideViewCameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("SideViewCamera"));
 	SideViewCameraComponent->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	SideViewCameraComponent->bUsePawnControlRotation = false; // We don't want the controller rotating the camera
 
-	// Configure character movement
+								  // Configure character movement
 	GetCharacterMovement()->bOrientRotationToMovement = true; // Face in the direction we are moving..
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 720.0f, 0.0f); // ...at this rotation rate
 	GetCharacterMovement()->GravityScale = 2.f;
@@ -53,33 +53,8 @@ ACIT333Character::ACIT333Character()
 
 void ACIT333Character::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
 {
-	// set up gameplay key bindings
-	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
-	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
-	PlayerInputComponent->BindAxis("MoveRight", this, &ACIT333Character::MoveRight);
-
-	PlayerInputComponent->BindTouch(IE_Pressed, this, &ACIT333Character::TouchStarted);
-	PlayerInputComponent->BindTouch(IE_Released, this, &ACIT333Character::TouchStopped);
-
 	// setup extended input component
 	ExtendedInputComponent->SetInputComponent(PlayerInputComponent);
 
 	SetupExtendedInputComponent();
-}
-
-void ACIT333Character::MoveRight(float Value)
-{
-	// add movement in that direction
-	AddMovementInput(FVector(0.f,-1.f,0.f), Value);
-}
-
-void ACIT333Character::TouchStarted(const ETouchIndex::Type FingerIndex, const FVector Location)
-{
-	// jump on any touch
-	Jump();
-}
-
-void ACIT333Character::TouchStopped(const ETouchIndex::Type FingerIndex, const FVector Location)
-{
-	StopJumping();
 }

@@ -7,7 +7,7 @@
 #include "GameFramework/Character.h"
 #include "CIT333Character.generated.h"
 
-UCLASS(config=Game)
+UCLASS(config = Game)
 class ACIT333Character : public ACharacter
 {
 	GENERATED_BODY()
@@ -26,19 +26,9 @@ class ACIT333Character : public ACharacter
 
 protected:
 
-	/** Called for side to side input */
-	void MoveRight(float Val);
-
-	/** Handle touch inputs. */
-	void TouchStarted(const ETouchIndex::Type FingerIndex, const FVector Location);
-
-	/** Handle touch stop event. */
-	void TouchStopped(const ETouchIndex::Type FingerIndex, const FVector Location);
-
 	// APawn interface
 	virtual void SetupPlayerInputComponent(class UInputComponent* InputComponent) override;
 	// End of APawn interface
-
 
 public:
 	ACIT333Character();

@@ -1,5 +1,7 @@
 #include "ExtendedInputComponent.h"
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void UExtendedInputComponent::BeginPlay()
 {
 	Super::BeginPlay();
@@ -12,17 +14,31 @@ void UExtendedInputComponent::SetInputComponent(UInputComponent* InputComponent)
 	this->InputComponent = InputComponent;
 }
 
-void UExtendedInputComponent::AddAction(TArray<FName> Names, EExtendedInputEvent Event, FExtendedInputStaticDelegate Delegate)
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void UExtendedInputComponent::BindAction(TArray<FName> Names, EExtendedInputEvent Event, FExtendedInputActionStaticDelegate Delegate)
 {
-	AddAction(Names, Event, FExtendedInputUnifiedDelegate(Delegate));
+	BindAction(Names, Event, FExtendedInputActionUnifiedDelegate(Delegate));
 }
 
-void UExtendedInputComponent::AddAction(TArray<FName> Names, EExtendedInputEvent Event, FExtendedInputDynamicDelegate Delegate)
+void UExtendedInputComponent::BindAction(TArray<FName> Names, EExtendedInputEvent Event, FExtendedInputActionDynamicDelegate Delegate)
 {
-	AddAction(Names, Event, FExtendedInputUnifiedDelegate(Delegate));
+	BindAction(Names, Event, FExtendedInputActionUnifiedDelegate(Delegate));
 }
 
-void UExtendedInputComponent::AddAction(TArray<FName> Names, EExtendedInputEvent Event, FExtendedInputUnifiedDelegate Delegate)
+void UExtendedInputComponent::BindAxis(FName Name, FExtendedInputAxisStaticDelegate Delegate)
+{
+	BindAxis(Name, FExtendedInputAxisUnifiedDelegate(Delegate));
+}
+
+void UExtendedInputComponent::BindAxis(FName Name, FExtendedInputAxisDynamicDelegate Delegate)
+{
+	BindAxis(Name, FExtendedInputAxisUnifiedDelegate(Delegate));
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void UExtendedInputComponent::BindAction(TArray<FName> Names, EExtendedInputEvent Event, FExtendedInputActionUnifiedDelegate Delegate)
 {
 	FExtendedInputTreeNode* Node = &Root;
 
@@ -36,14 +52,13 @@ void UExtendedInputComponent::AddAction(TArray<FName> Names, EExtendedInputEvent
 		}
 		else
 		{
-			Node = Node->Children.Emplace(Name, new FExtendedInputTreeNode()).Get();
+			Node = Node->Children.Emplace(Name, new FExtendedInputTreeNode).Get();
 		}
 
-		// Test if handling bound names this way is a problem or not.
-		if (!BoundNames.Contains(Name))
+		if (!BoundActionNames.Contains(Name))
 		{
 			FInputActionHandlerSignature Signature;
-			Signature.BindUObject(this, &UExtendedInputComponent::OnPressed, Name);
+			Signature.BindUObject(this, &UExtendedInputComponent::OnActionPressed, Name);
 
 			FInputActionBinding Binding;
 			Binding.ActionDelegate = Signature;
@@ -51,9 +66,8 @@ void UExtendedInputComponent::AddAction(TArray<FName> Names, EExtendedInputEvent
 			Binding.KeyEvent = IE_Pressed;
 
 			InputComponent->AddActionBinding(Binding);
-			InputComponent->BindAction(Name, IE_Released, this, &UExtendedInputComponent::OnReleased);
-
-			BoundNames.Add(Name);
+			InputComponent->BindAction(Name, IE_Released, this, &UExtendedInputComponent::OnActionReleased);
+			BoundActionNames.Add(Name);
 		}
 	}
 
@@ -61,13 +75,50 @@ void UExtendedInputComponent::AddAction(TArray<FName> Names, EExtendedInputEvent
 	{
 		Node->ShortTapDelegate = Delegate;
 	}
-	else if (Event == EExtendedInputEvent::EIE_LongTap)
+	else
 	{
 		Node->LongTapDelegate = Delegate;
 	}
 }
 
-void UExtendedInputComponent::OnPressed(FName Name)
+void UExtendedInputComponent::BindAxis(FName Name, FExtendedInputAxisUnifiedDelegate Delegate)
+{
+	FExtendedInputTreeNode* Node = nullptr;
+
+	if (Root.Children.Contains(Name))
+	{
+		Node = Root.Children.Find(Name)->Get();
+	}
+	else
+	{
+		Node = Root.Children.Emplace(Name, new FExtendedInputTreeNode).Get();
+	}
+
+	if (!BoundAxisNames.Contains(Name))
+	{
+		FExtendedInputAxisDelegateWrapperDelegate WrapperDelegate;
+		WrapperDelegate.BindUObject(this, &UExtendedInputComponent::OnAxisPressed);
+
+		UExtendedInputAxisDelegateWrapper* Wrapper = NewObject<UExtendedInputAxisDelegateWrapper>();
+		Wrapper->BindDelegate(WrapperDelegate, Name);
+
+		FInputAxisUnifiedDelegate UnifiedDelegate;
+		UnifiedDelegate.BindDelegate(Wrapper, &UExtendedInputAxisDelegateWrapper::Execute);
+
+		FInputAxisBinding Binding;
+		Binding.AxisDelegate = UnifiedDelegate;
+		Binding.AxisName = Name;
+
+		InputComponent->AxisBindings.Add(Binding);
+		BoundAxisNames.Add(Name);
+	}
+
+	Node->AxisDelegate = Delegate;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void UExtendedInputComponent::OnActionPressed(FName Name)
 {
 	if (!TimerManager->IsTimerActive(ShortTapHandle) && !TimerManager->IsTimerActive(LongTapHandle))
 	{
@@ -85,13 +136,11 @@ void UExtendedInputComponent::OnPressed(FName Name)
 	}
 }
 
-void UExtendedInputComponent::OnReleased()
+void UExtendedInputComponent::OnActionReleased()
 {
 	if (TimerManager->IsTimerActive(ShortTapHandle))
 	{
 		TimerManager->ClearTimer(ShortTapHandle);
-
-		// Only remove name?
 		PressedNames.Empty();
 	}
 	else if (TimerManager->IsTimerActive(LongTapHandle))
@@ -103,10 +152,18 @@ void UExtendedInputComponent::OnReleased()
 			Node->ShortTapDelegate.Execute();
 		}
 
-		// Only remove name?
 		PressedNames.Empty();
 	}
 }
+
+void UExtendedInputComponent::OnAxisPressed(FName Name, float Value)
+{
+	UE_LOG(LogTemp, Log, TEXT("OnAxisPressed: %s %f"), *Name.ToString(), Value);
+
+	Root.Children[Name]->AxisDelegate.Execute(Value);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void UExtendedInputComponent::OnShortTap()
 {
@@ -118,7 +175,6 @@ void UExtendedInputComponent::OnShortTap()
 	{
 		if (!Node->Children.Contains(Name))
 		{
-			// Modify?
 			PressedNames.Empty();
 			return;
 		}
@@ -135,7 +191,6 @@ void UExtendedInputComponent::OnShortTap()
 		Node->ShortTapDelegate.Execute();
 	}
 
-	// Modify?
 	PressedNames.Empty();
 }
 

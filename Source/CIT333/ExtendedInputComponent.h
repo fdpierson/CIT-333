@@ -2,7 +2,7 @@
 
 #include "ExtendedInputComponent.generated.h"
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 UENUM(BlueprintType)
 enum class EExtendedInputEvent : uint8
@@ -11,24 +11,31 @@ enum class EExtendedInputEvent : uint8
 	EIE_LongTap  UMETA(DisplayName = "Long Tap")
 };
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+DECLARE_DELEGATE(FExtendedInputActionStaticDelegate);
+DECLARE_DELEGATE_OneParam(FExtendedInputAxisStaticDelegate, float);
+DECLARE_DYNAMIC_DELEGATE(FExtendedInputActionDynamicDelegate);
+DECLARE_DYNAMIC_DELEGATE_OneParam(FExtendedInputAxisDynamicDelegate, float, Value);
 
 template<typename StaticDelegateType, typename DynamicDelegateType>
-class FUnifiedDelegate
+class TExtendedInputUnifiedDelegate
 {
 public:
-	FUnifiedDelegate() {}
-	FUnifiedDelegate(StaticDelegateType Delegate) : StaticDelegate(Delegate), IsStaticDelegate(true) {}
-	FUnifiedDelegate(DynamicDelegateType Delegate) : DynamicDelegate(Delegate), IsStaticDelegate(false) {}
+	TExtendedInputUnifiedDelegate() {}
+	TExtendedInputUnifiedDelegate(StaticDelegateType Delegate) : StaticDelegate(Delegate) {}
+	TExtendedInputUnifiedDelegate(DynamicDelegateType Delegate) : DynamicDelegate(Delegate) {}
 
 	void BindDelegate(StaticDelegateType Delegate)
 	{
 		StaticDelegate = Delegate;
+		DynamicDelegate.Unbind();
 	}
 
 	void BindDelegate(DynamicDelegateType Delegate)
 	{
 		DynamicDelegate = Delegate;
+		StaticDelegate.Unbind();
 	}
 
 	bool IsBound()
@@ -42,31 +49,58 @@ public:
 		DynamicDelegate.Unbind();
 	}
 
-	void Execute()
+	template<typename... VarTypes>
+	void Execute(VarTypes... Variables)
 	{
-		if (IsStaticDelegate)
+		if (StaticDelegate.IsBound())
 		{
-			StaticDelegate.ExecuteIfBound();
+			StaticDelegate.Execute(Variables...);
 		}
-		else
+		else if (DynamicDelegate.IsBound())
 		{
-			DynamicDelegate.ExecuteIfBound();
+			DynamicDelegate.Execute(Variables...);
 		}
 	}
 
 private:
-	bool IsStaticDelegate;
-
 	StaticDelegateType StaticDelegate;
 	DynamicDelegateType DynamicDelegate;
 };
 
-DECLARE_DELEGATE(FExtendedInputStaticDelegate);
-DECLARE_DYNAMIC_DELEGATE(FExtendedInputDynamicDelegate);
+typedef TExtendedInputUnifiedDelegate<FExtendedInputActionStaticDelegate, FExtendedInputActionDynamicDelegate> FExtendedInputActionUnifiedDelegate;
+typedef TExtendedInputUnifiedDelegate<FExtendedInputAxisStaticDelegate, FExtendedInputAxisDynamicDelegate> FExtendedInputAxisUnifiedDelegate;
 
-typedef FUnifiedDelegate<FExtendedInputStaticDelegate, FExtendedInputDynamicDelegate> FExtendedInputUnifiedDelegate;
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+DECLARE_DELEGATE_TwoParams(FExtendedInputAxisDelegateWrapperDelegate, FName, float);
+
+UCLASS()
+class CIT333_API UExtendedInputAxisDelegateWrapper : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	void BindDelegate(FExtendedInputAxisDelegateWrapperDelegate Delegate, FName Name)
+	{
+		this->Delegate = Delegate;
+		this->Name = Name;
+	}
+
+	void Execute(float Value)
+	{
+		if (Delegate.IsBound())
+		{
+			Delegate.Execute(Name, Value);
+		}
+	}
+
+private:
+	FExtendedInputAxisDelegateWrapperDelegate Delegate;
+
+	FName Name;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct FExtendedInputTreeNode;
 
@@ -74,11 +108,12 @@ struct FExtendedInputTreeNode
 {
 	TMap<FName, TUniquePtr<FExtendedInputTreeNode>> Children;
 
-	FExtendedInputUnifiedDelegate ShortTapDelegate;
-	FExtendedInputUnifiedDelegate LongTapDelegate;
+	FExtendedInputActionUnifiedDelegate ShortTapDelegate;
+	FExtendedInputActionUnifiedDelegate LongTapDelegate;
+	FExtendedInputAxisUnifiedDelegate AxisDelegate;
 };
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 UCLASS()
 class CIT333_API UExtendedInputComponent : public UActorComponent
@@ -87,24 +122,38 @@ class CIT333_API UExtendedInputComponent : public UActorComponent
 
 public:
 	UPROPERTY(meta = (DisplayName = "Short Tap Time"))
-	float ShortTapTime = 0.125f;
+	float ShortTapTime = 0.050f;
 
 	UPROPERTY(meta = (DisplayName = "Long Tap Time"))
 	float LongTapTime = 0.500f;
 
 	template<typename ObjType, typename FuncType>
-	void AddAction(TArray<FName> Names, EExtendedInputEvent Event, ObjType* Object, FuncType Function)
+	void BindAction(TArray<FName> Names, EExtendedInputEvent Event, ObjType* Object, FuncType Function)
 	{
-		FExtendedInputStaticDelegate Delegate;
+		FExtendedInputActionStaticDelegate Delegate;
 		Delegate.BindUObject(Object, Function);
 
-		AddAction(Names, Event, Delegate);
+		BindAction(Names, Event, Delegate);
 	}
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Add Action"))
-	void AddAction(TArray<FName> Names, EExtendedInputEvent Event, FExtendedInputDynamicDelegate Delegate);
-	void AddAction(TArray<FName> Names, EExtendedInputEvent Event, FExtendedInputStaticDelegate Delegate);
-	void AddAction(TArray<FName> Names, EExtendedInputEvent Event, FExtendedInputUnifiedDelegate Delegate);
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Bind Action"))
+	void BindAction(TArray<FName> Names, EExtendedInputEvent Event, FExtendedInputActionDynamicDelegate Delegate);
+	void BindAction(TArray<FName> Names, EExtendedInputEvent Event, FExtendedInputActionStaticDelegate Delegate);
+	void BindAction(TArray<FName> Names, EExtendedInputEvent Event, FExtendedInputActionUnifiedDelegate Delegate);
+
+	template<typename ObjType, typename FuncType>
+	void BindAxis(FName Name, ObjType* Object, FuncType Function, bool Immediate)
+	{
+		FExtendedInputAxisStaticDelegate Delegate;
+		Delegate.BindUObject(Object, Function);
+
+		BindAxis(Names, Event, Delegate, Immediate);
+	}
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Bind Axis"))
+	void BindAxis(FName Name, FExtendedInputAxisDynamicDelegate Delegate);
+	void BindAxis(FName Name, FExtendedInputAxisStaticDelegate Delegate);
+	void BindAxis(FName Name, FExtendedInputAxisUnifiedDelegate Delegate);
 
 	virtual void BeginPlay() override;
 
@@ -117,13 +166,15 @@ protected:
 	FTimerHandle ShortTapHandle;
 	FTimerManager* TimerManager;
 
-	TArray<FName> BoundNames;
+	TArray<FName> BoundActionNames;
+	TArray<FName> BoundAxisNames;
 	TArray<FName> PressedNames;
 
 	UInputComponent* InputComponent;
 
-	void OnPressed(FName Name);
-	void OnReleased();
+	void OnActionPressed(FName Name);
+	void OnActionReleased();
+	void OnAxisPressed(FName Name, float Value);
 	void OnShortTap();
 	void OnLongTap();
 };
