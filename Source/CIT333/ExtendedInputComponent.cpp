@@ -72,29 +72,24 @@ void UExtendedInputComponent::TickComponent(float DeltaTime, ELevelTick TickType
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void UExtendedInputComponent::BindAction1(FName FirstName, EExtendedInputEvent Event, FExtendedInputActionDynamicDelegate Delegate)
+void UExtendedInputComponent::BindDelayedAction1(FName FirstName, EExtendedInputEvent Event, FExtendedInputActionDynamicDelegate Delegate)
 {
-    BindAction({ FirstName }, Event, Delegate);
+    BindDelayedAction({ FirstName }, Event, FExtendedInputActionUnifiedDelegate(Delegate));
 }
 
-void UExtendedInputComponent::BindAction2(FName FirstName, FName SecondName, EExtendedInputEvent Event, FExtendedInputActionDynamicDelegate Delegate)
+void UExtendedInputComponent::BindDelayedAction2(FName FirstName, FName SecondName, EExtendedInputEvent Event, FExtendedInputActionDynamicDelegate Delegate)
 {
-    BindAction({ FirstName, SecondName }, Event, Delegate);
+    BindDelayedAction({ FirstName, SecondName }, Event, FExtendedInputActionUnifiedDelegate(Delegate));
 }
 
-void UExtendedInputComponent::BindAction(TArray<FName> Names, EExtendedInputEvent Event, FExtendedInputActionStaticDelegate Delegate)
+void UExtendedInputComponent::BindDelayedAction(TArray<FName> Names, EExtendedInputEvent Event, FExtendedInputActionStaticDelegate Delegate)
 {
-    BindAction(Names, Event, FExtendedInputActionUnifiedDelegate(Delegate));
-}
-
-void UExtendedInputComponent::BindAction(TArray<FName> Names, EExtendedInputEvent Event, FExtendedInputActionDynamicDelegate Delegate)
-{
-    BindAction(Names, Event, FExtendedInputActionUnifiedDelegate(Delegate));
+    BindDelayedAction(Names, Event, FExtendedInputActionUnifiedDelegate(Delegate));
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void UExtendedInputComponent::BindAction(TArray<FName> Names, EExtendedInputEvent Event, FExtendedInputActionUnifiedDelegate Delegate)
+void UExtendedInputComponent::BindDelayedAction(TArray<FName> Names, EExtendedInputEvent Event, FExtendedInputActionUnifiedDelegate Delegate)
 {
     FExtendedInputNameNode* Node = &Root;
 
@@ -113,24 +108,24 @@ void UExtendedInputComponent::BindAction(TArray<FName> Names, EExtendedInputEven
 
         if (!BoundNames.Contains(Name))
         {
-            FInputActionHandlerSignature PressedSignature;
-            PressedSignature.BindUObject(this, &UExtendedInputComponent::OnNamePressed, Name);
+            FInputActionBinding Binding;
+            FInputActionHandlerSignature Signature;
 
-            FInputActionBinding PressedBinding;
-            PressedBinding.ActionDelegate = PressedSignature;
-            PressedBinding.ActionName = Name;
-            PressedBinding.KeyEvent = IE_Pressed;
+            Signature.BindUObject(this, &UExtendedInputComponent::OnNamePressed, Name);
 
-            FInputActionHandlerSignature ReleasedSignature;
-            ReleasedSignature.BindUObject(this, &UExtendedInputComponent::OnNameReleased, Name);
+            Binding.ActionDelegate = Signature;
+            Binding.ActionName = Name;
+            Binding.KeyEvent = IE_Pressed;
 
-            FInputActionBinding ReleasedBinding;
-            ReleasedBinding.ActionDelegate = ReleasedSignature;
-            ReleasedBinding.ActionName = Name;
-            ReleasedBinding.KeyEvent = IE_Released;
+            InputComponent->AddActionBinding(Binding);
 
-            InputComponent->AddActionBinding(PressedBinding);
-            InputComponent->AddActionBinding(ReleasedBinding);
+            Signature.BindUObject(this, &UExtendedInputComponent::OnNameReleased, Name);
+
+            Binding.ActionDelegate = Signature;
+            Binding.ActionName = Name;
+            Binding.KeyEvent = IE_Released;
+
+            InputComponent->AddActionBinding(Binding);
 
             BoundNames.Add(Name);
         }
@@ -146,7 +141,20 @@ void UExtendedInputComponent::BindAction(TArray<FName> Names, EExtendedInputEven
     }
 }
 
-void UExtendedInputComponent::BindAxis(FName Name, FExtendedInputAxisDynamicDelegate Delegate)
+void UExtendedInputComponent::BindInstantAction(FName Name, FExtendedInputActionDynamicDelegate Delegate)
+{
+    FInputActionHandlerSignature Signature;
+    Signature.BindUObject(this, &UExtendedInputComponent::OnInstant, Delegate);
+
+    FInputActionBinding Binding;
+    Binding.ActionDelegate = Signature;
+    Binding.ActionName = Name;
+    Binding.KeyEvent = IE_Pressed;
+
+    InputComponent->AddActionBinding(Binding);
+}
+
+void UExtendedInputComponent::BindInstantAxis(FName Name, FExtendedInputAxisDynamicDelegate Delegate)
 {
     InputComponent->BindAxis(Name);
 
@@ -157,8 +165,6 @@ void UExtendedInputComponent::BindAxis(FName Name, FExtendedInputAxisDynamicDele
 
 void UExtendedInputComponent::OnNamePressed(FName Name)
 {
-    UE_LOG(LogTemp, Log, TEXT("OnNamePressed"));
-
     if (!TimerManager->IsTimerActive(ShortHandle) && !TimerManager->IsTimerActive(LongHandle))
     {
         TimerManager->SetTimer(ShortHandle, this, &UExtendedInputComponent::OnShort, ShortTime, false, ShortTime);
@@ -171,20 +177,16 @@ void UExtendedInputComponent::OnNamePressed(FName Name)
     else if (TimerManager->IsTimerActive(LongHandle))
     {
         TimerManager->ClearTimer(LongHandle);
-        //PressedNames.Empty();
     }
 }
 
 void UExtendedInputComponent::OnNameReleased(FName Name)
 {
-    UE_LOG(LogTemp, Log, TEXT("OnNameReleased"));
-
     PressedNames.Remove(Name);
 
     if (TimerManager->IsTimerActive(ShortHandle))
     {
         TimerManager->ClearTimer(ShortHandle);
-        //PressedNames.Empty();
     }
     else if (TimerManager->IsTimerActive(LongHandle))
     {
@@ -194,26 +196,24 @@ void UExtendedInputComponent::OnNameReleased(FName Name)
         }
 
         TimerManager->ClearTimer(LongHandle);
-        //PressedNames.Empty();
     }
+}
+
+void UExtendedInputComponent::OnInstant(FExtendedInputActionDynamicDelegate Delegate)
+{
+    Delegate.Execute();
 }
 
 void UExtendedInputComponent::OnShort()
 {
-    UE_LOG(LogTemp, Log, TEXT("OnShort"));
-
     Node = &Root;
 
     PressedNames.Sort();
 
     for (FName& Name : PressedNames)
     {
-        UE_LOG(LogTemp, Log, TEXT("Test"));
-        UE_LOG(LogTemp, Log, *Name.ToString());
-
         if (!Node->Children.Contains(Name))
         {
-            // PressedNames.Empty();
             return;
         }
 
@@ -228,8 +228,6 @@ void UExtendedInputComponent::OnShort()
     {
         Node->ShortDelegate.Execute();
     }
-
-    // PressedNames.Empty();
 }
 
 void UExtendedInputComponent::OnLong()

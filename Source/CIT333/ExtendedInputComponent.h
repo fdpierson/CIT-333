@@ -1,7 +1,3 @@
-// TODO: Assign constants and references.
-// TODO: Does BindAxis allow multiple delegates to be called for each axis?
-// TODO: Fix weird name collisions.
-
 #pragma once
 
 #include "ExtendedInputComponent.generated.h"
@@ -79,35 +75,44 @@ public:
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
     float LongTime = 0.5f;
 
-    UFUNCTION(BlueprintCallable, Meta = (DisplayName = "Bind Action with One Name"))
-    void BindAction1(FName FirstName, EExtendedInputEvent Event, FExtendedInputActionDynamicDelegate Delegate);
+    UFUNCTION(BlueprintCallable, Meta = (DisplayName = "Bind Delayed Action with One Name"))
+    void BindDelayedAction1(FName FirstName, EExtendedInputEvent Event, FExtendedInputActionDynamicDelegate Delegate);
 
-    UFUNCTION(BlueprintCallable, Meta = (DisplayName = "Bind Action with Two Names"))
-    void BindAction2(FName FirstName, FName SecondName, EExtendedInputEvent Event, FExtendedInputActionDynamicDelegate Delegate);
+    UFUNCTION(BlueprintCallable, Meta = (DisplayName = "Bind Delayed Action with Two Names"))
+    void BindDelayedAction2(FName FirstName, FName SecondName, EExtendedInputEvent Event, FExtendedInputActionDynamicDelegate Delegate);
 
-    UFUNCTION(BlueprintCallable)
-    void BindAxis(FName Name, FExtendedInputAxisDynamicDelegate Delegate);
+    UFUNCTION(BlueprintCallable, Meta = (DisplayName = "Bind Instant Action with One Name"))
+    void BindInstantAction(FName Name, FExtendedInputActionDynamicDelegate Delegate);
+
+    UFUNCTION(BlueprintCallable, Meta = (DisplayName = "Bind Instant Axis with One Name"))
+    void BindInstantAxis(FName Name, FExtendedInputAxisDynamicDelegate Delegate);
 
     template<typename UserClass>
-    void BindAction(FName FirstName, EExtendedInputEvent Event, UserClass* Object, typename FExtendedInputActionStaticDelegate::TUObjectMethodDelegate<UserClass>::FMethodPtr Function)
+    void BindDelayedAction(FName FirstName, EExtendedInputEvent Event, UserClass* Object, typename FExtendedInputActionStaticDelegate::TUObjectMethodDelegate<UserClass>::FMethodPtr Function)
     {
         FExtendedInputActionStaticDelegate Delegate;
         Delegate.BindUObject(Object, Function);
 
-        BindAction({ FirstName }, Delegate);
+        BindDelayedAction({ FirstName }, Delegate);
     }
 
     template<typename UserClass>
-    void BindAction(FName FirstName, FName SecondName, EExtendedInputEvent Event, UserClass* Object, typename FExtendedInputActionStaticDelegate::TUObjectMethodDelegate<UserClass>::FMethodPtr Function)
+    void BindDelayedAction(FName FirstName, FName SecondName, EExtendedInputEvent Event, UserClass* Object, typename FExtendedInputActionStaticDelegate::TUObjectMethodDelegate<UserClass>::FMethodPtr Function)
     {
         FExtendedInputActionStaticDelegate Delegate;
         Delegate.BindUObject(Object, Function);
 
-        BindAction({ FirstName, SecondName }, Delegate);
+        BindDelayedAction({ FirstName, SecondName }, Delegate);
     }
 
     template<typename UserClass>
-    void BindAxis(FName Name, UserClass* Object, typename FInputAxisHandlerSignature::TUObjectMethodDelegate<UserClass>::FMethodPtr Function)
+    void BindInstantAction(FName Name, UserClass* Object, typename FExtendedInputActionStaticDelegate::TUObjectMethodDelegate<UserClass>::FMethodPtr Function)
+    {
+        InputComponent->BindAction(Name, Object, Function);
+    }
+
+    template<typename UserClass>
+    void BindInstantAxis(FName Name, UserClass* Object, typename FInputAxisHandlerSignature::TUObjectMethodDelegate<UserClass>::FMethodPtr Function)
     {
         InputComponent->BindAxis(Name, Object, Function)
     }
@@ -127,12 +132,13 @@ private:
 
     UInputComponent* InputComponent;
 
-    void BindAction(TArray<FName> Names, EExtendedInputEvent Event, FExtendedInputActionStaticDelegate Delegate);
-    void BindAction(TArray<FName> Names, EExtendedInputEvent Event, FExtendedInputActionDynamicDelegate Delegate);
-    void BindAction(TArray<FName> Names, EExtendedInputEvent Event, FExtendedInputActionUnifiedDelegate Delegate);
+    void BindDelayedAction(TArray<FName> Names, EExtendedInputEvent Event, FExtendedInputActionStaticDelegate Delegate);
+    void BindDelayedAction(TArray<FName> Names, EExtendedInputEvent Event, FExtendedInputActionDynamicDelegate Delegate);
+    void BindDelayedAction(TArray<FName> Names, EExtendedInputEvent Event, FExtendedInputActionUnifiedDelegate Delegate);
 
     void OnNamePressed(FName Name);
     void OnNameReleased(FName Name);
+    void OnInstant(FExtendedInputActionDynamicDelegate Delegate);
     void OnShort();
     void OnLong();
 
