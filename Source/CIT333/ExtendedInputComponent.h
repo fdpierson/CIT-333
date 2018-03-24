@@ -71,6 +71,8 @@ class CIT333_API UExtendedInputComponent : public UActorComponent
     GENERATED_BODY()
 
 public:
+    UExtendedInputComponent();
+
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
     float ShortTime = 0.05f;
 
@@ -130,7 +132,7 @@ private:
     void BindAction(TArray<FName> Names, EExtendedInputEvent Event, FExtendedInputActionUnifiedDelegate Delegate);
 
     void OnNamePressed(FName Name);
-    void OnNameReleased();
+    void OnNameReleased(FName Name);
     void OnShort();
     void OnLong();
 

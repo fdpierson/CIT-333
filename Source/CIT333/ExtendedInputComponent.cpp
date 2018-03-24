@@ -40,6 +40,14 @@ bool FExtendedInputActionUnifiedDelegate::IsBound()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+UExtendedInputComponent::UExtendedInputComponent()
+{
+    PrimaryComponentTick.bCanEverTick = true;
+    PrimaryComponentTick.bStartWithTickEnabled = true;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void UExtendedInputComponent::SetInputComponent(UInputComponent* InputComponent)
 {
     this->InputComponent = InputComponent;
@@ -54,6 +62,8 @@ void UExtendedInputComponent::BeginPlay()
 
 void UExtendedInputComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
+    Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
     for (auto Delegate : AxisDelegates)
     {
         Delegate.Value.Execute(InputComponent->GetAxisValue(Delegate.Key));
@@ -103,16 +113,25 @@ void UExtendedInputComponent::BindAction(TArray<FName> Names, EExtendedInputEven
 
         if (!BoundNames.Contains(Name))
         {
-            FInputActionHandlerSignature Signature;
-            Signature.BindUObject(this, &UExtendedInputComponent::OnNamePressed, Name);
+            FInputActionHandlerSignature PressedSignature;
+            PressedSignature.BindUObject(this, &UExtendedInputComponent::OnNamePressed, Name);
 
-            FInputActionBinding Binding;
-            Binding.ActionDelegate = Signature;
-            Binding.ActionName = Name;
-            Binding.KeyEvent = IE_Pressed;
+            FInputActionBinding PressedBinding;
+            PressedBinding.ActionDelegate = PressedSignature;
+            PressedBinding.ActionName = Name;
+            PressedBinding.KeyEvent = IE_Pressed;
 
-            InputComponent->AddActionBinding(Binding);
-            InputComponent->BindAction(Name, IE_Released, this, &UExtendedInputComponent::OnNameReleased);
+            FInputActionHandlerSignature ReleasedSignature;
+            ReleasedSignature.BindUObject(this, &UExtendedInputComponent::OnNameReleased, Name);
+
+            FInputActionBinding ReleasedBinding;
+            ReleasedBinding.ActionDelegate = ReleasedSignature;
+            ReleasedBinding.ActionName = Name;
+            ReleasedBinding.KeyEvent = IE_Released;
+
+            InputComponent->AddActionBinding(PressedBinding);
+            InputComponent->AddActionBinding(ReleasedBinding);
+
             BoundNames.Add(Name);
         }
     }
@@ -131,13 +150,15 @@ void UExtendedInputComponent::BindAxis(FName Name, FExtendedInputAxisDynamicDele
 {
     InputComponent->BindAxis(Name);
 
-    AxisDelegates[Name] = Delegate;
+    AxisDelegates.Add(Name, Delegate);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void UExtendedInputComponent::OnNamePressed(FName Name)
 {
+    UE_LOG(LogTemp, Log, TEXT("OnNamePressed"));
+
     if (!TimerManager->IsTimerActive(ShortHandle) && !TimerManager->IsTimerActive(LongHandle))
     {
         TimerManager->SetTimer(ShortHandle, this, &UExtendedInputComponent::OnShort, ShortTime, false, ShortTime);
@@ -150,16 +171,20 @@ void UExtendedInputComponent::OnNamePressed(FName Name)
     else if (TimerManager->IsTimerActive(LongHandle))
     {
         TimerManager->ClearTimer(LongHandle);
-        PressedNames.Empty();
+        //PressedNames.Empty();
     }
 }
 
-void UExtendedInputComponent::OnNameReleased()
+void UExtendedInputComponent::OnNameReleased(FName Name)
 {
+    UE_LOG(LogTemp, Log, TEXT("OnNameReleased"));
+
+    PressedNames.Remove(Name);
+
     if (TimerManager->IsTimerActive(ShortHandle))
     {
         TimerManager->ClearTimer(ShortHandle);
-        PressedNames.Empty();
+        //PressedNames.Empty();
     }
     else if (TimerManager->IsTimerActive(LongHandle))
     {
@@ -169,21 +194,26 @@ void UExtendedInputComponent::OnNameReleased()
         }
 
         TimerManager->ClearTimer(LongHandle);
-        PressedNames.Empty();
+        //PressedNames.Empty();
     }
 }
 
 void UExtendedInputComponent::OnShort()
 {
+    UE_LOG(LogTemp, Log, TEXT("OnShort"));
+
     Node = &Root;
 
     PressedNames.Sort();
 
     for (FName& Name : PressedNames)
     {
+        UE_LOG(LogTemp, Log, TEXT("Test"));
+        UE_LOG(LogTemp, Log, *Name.ToString());
+
         if (!Node->Children.Contains(Name))
         {
-            PressedNames.Empty();
+            // PressedNames.Empty();
             return;
         }
 
@@ -199,7 +229,7 @@ void UExtendedInputComponent::OnShort()
         Node->ShortDelegate.Execute();
     }
 
-    PressedNames.Empty();
+    // PressedNames.Empty();
 }
 
 void UExtendedInputComponent::OnLong()
